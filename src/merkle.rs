@@ -58,6 +58,64 @@ pub fn show_file_hashes() {
     println!("Merkle root: {}", hex_hash(&merkle_root));
 }
 
+struct MerkleTree {
+    hashes: Vec<Vec<[u8; 32]>>,
+}
+
+impl MerkleTree {
+    fn from_hashes(hashes: Vec<[u8; 32]>) -> Self {
+        let mut hashes = hashes;
+        let mut levels = Vec::<Vec<[u8; 32]>>::new();
+
+        if hashes.len() == 0 {
+            levels.push(vec![[0u8; 32]]);
+            return MerkleTree { hashes: levels };
+        }
+        MerkleTree { hashes: levels }
+    }
+
+    fn get_merkle_root(&self) -> &[u8; 32] {
+        &self.hashes.last().unwrap()[0]
+    }
+
+    fn make_merkle_proof(&self, index: usize) -> Vec<[u8; 32]> {
+        fn make_merkle_proof_inner(
+            hashes: &Vec<[u8; 32]>,
+            index: usize,
+            proof: &mut Vec<[u8; 32]>,
+        ) {
+            if index % 2 == 0 {
+                proof.push(hashes[index + 1]);
+            } else {
+                proof.push(hashes[index - 1]);
+            };
+        }
+        let size = self.hashes.len();
+        assert!(index < size);
+        if size == 0 {
+            return vec![[0; 32]];
+        }
+        if size == 1 {
+            return self.hashes[0].clone();
+        }
+        println!("Proof size of {} hashes: {}", size, self.hashes[0].len());
+        let mut proof = Vec::with_capacity(size);
+        for level in 0..size {
+            let level_hashes = &self.hashes[level];
+            let idx = index / 2usize.pow(level as u32);
+            let proof_hash_idx = if idx % 2 == 0 { idx + 1 } else { idx - 1 };
+            println!(
+                "Level size: {}, idx: {}, proof_hash_idx: {}",
+                level_hashes.len(),
+                idx,
+                proof_hash_idx
+            );
+            proof.push(level_hashes[proof_hash_idx]);
+        }
+        proof
+    }
+}
+
 // This is a naive and simple implementation of the merkle root calculation.
 // It requires all the files' hashes in memory.
 // Each hash is 32 bytes, so even for millions of files it is not a huge problem though.
