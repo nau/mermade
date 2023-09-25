@@ -32,7 +32,7 @@ async fn main() -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use crate::merkle::{
-        calculate_merkle_root_naively, make_merkle_proof, show_file_hashes, MerkleTree,
+        calculate_merkle_root_naively, hex_hash, make_merkle_proof, show_file_hashes, MerkleTree,
     };
     use hex_literal::hex;
 
@@ -59,17 +59,17 @@ mod tests {
         let hashes = vec![
             hex!("1d26c74fd25a4c3dbb09e029fc609588da499fd4af2a41c88f6316c7f8c54cf1"),
             hex!("44c92e3a70ad3307b7056871c2bdb096d8bfa9373f5bf06a79bb6324a20ff2fb"),
-            hex!("006395992527536bb1f4f9896133f7332de2fa084b7caaf125d1566ad849ccbb"),
-            hex!("35123422729b43b1ec55af2978db6602aea5f9f5d3605bc898f726f7a847d3b3"),
+            hex!("fe2d958bad389d6522b04844acc0dced92bcdce95c87971ccbe0f3ad74543f0e"),
+            hex!("bbd1319ff740a5546ea65c0d3596672a3705cb9f496012ad6f089e1e0ab6331d"),
             hex!("c5fbbae0208e0c69e6f28fddce5b3770141c405f50100f666dce23c110090345"),
             hex!("dcbccb66ce7ebd666ce5837ce9d73df56049538623e4492ad6b98b37de9751ac"),
         ];
         let root = calculate_merkle_root_naively(hashes.clone());
         assert_eq!(
             root,
-            hex!("b81026c419837081d0cab8ad718aab13c47331cb701306d9b291adb038d7a7f1")
+            hex!("909f4133d05851b483a924b2f3b565651a59efc2ecfcf522c161e446f9638a74")
         );
-        make_merkle_proof(&hashes, 0);
+        // make_merkle_proof(&hashes, 0);
     }
 
     #[test]
@@ -79,8 +79,8 @@ mod tests {
         let hashes = vec![
             hex!("1d26c74fd25a4c3dbb09e029fc609588da499fd4af2a41c88f6316c7f8c54cf1"),
             hex!("44c92e3a70ad3307b7056871c2bdb096d8bfa9373f5bf06a79bb6324a20ff2fb"),
-            hex!("006395992527536bb1f4f9896133f7332de2fa084b7caaf125d1566ad849ccbb"),
-            hex!("35123422729b43b1ec55af2978db6602aea5f9f5d3605bc898f726f7a847d3b3"),
+            hex!("fe2d958bad389d6522b04844acc0dced92bcdce95c87971ccbe0f3ad74543f0e"),
+            hex!("bbd1319ff740a5546ea65c0d3596672a3705cb9f496012ad6f089e1e0ab6331d"),
             hex!("c5fbbae0208e0c69e6f28fddce5b3770141c405f50100f666dce23c110090345"),
             hex!("dcbccb66ce7ebd666ce5837ce9d73df56049538623e4492ad6b98b37de9751ac"),
         ];
@@ -88,8 +88,14 @@ mod tests {
         let root = mtree.get_merkle_root();
         assert_eq!(
             *root,
-            hex!("b81026c419837081d0cab8ad718aab13c47331cb701306d9b291adb038d7a7f1")
+            hex!("909f4133d05851b483a924b2f3b565651a59efc2ecfcf522c161e446f9638a74")
         );
-        make_merkle_proof(&hashes, 0);
+        let proof = mtree.make_merkle_proof(0);
+        assert_eq!(proof.len(), 3);
+        mtree.show();
+        println!(
+            "Proof: {:?}",
+            proof.iter().map(hex_hash).collect::<Vec<_>>()
+        );
     }
 }
