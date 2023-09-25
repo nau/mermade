@@ -1,4 +1,3 @@
-use sha2::digest::typenum::Log2;
 use sha2::Digest;
 use sha2::Sha256;
 use std::fs;
@@ -54,8 +53,8 @@ pub fn show_file_hashes() {
         let hex_string = hex_hash(&hash);
         println!("{}: {}", file, hex_string);
     }
-    let merkle_root = calculate_merkle_root_naively(hashes);
-    println!("Merkle root: {}", hex_hash(&merkle_root));
+    let merkle_tree = MerkleTree::from_hashes(hashes);
+    println!("Merkle root: {}", hex_hash(merkle_tree.get_merkle_root()));
 }
 
 pub struct MerkleTree {
@@ -97,10 +96,12 @@ impl MerkleTree {
         MerkleTree { levels }
     }
 
+    /// Get the merkle root of the tree.
     pub fn get_merkle_root(&self) -> &[u8; 32] {
         &self.levels.last().unwrap()[0]
     }
 
+    /// Get the merkle proof for the leaf with the given index.
     pub fn make_merkle_proof(&self, index: usize) -> Vec<[u8; 32]> {
         let proof_size = self.levels.len() - 1;
         let hashes_count = self.levels[0].len();
@@ -141,42 +142,6 @@ impl MerkleTree {
     }
 }
 
-// This is a naive and simple implementation of the merkle root calculation.
-// It requires all the files' hashes in memory.
-// Each hash is 32 bytes, so even for millions of files it is not a huge problem though.
-// The implementation reuses the hashes vector to avoid allocating new memory.
-// It is recursive, but again it's not a problem as the call stack grows logarithmically.
-pub fn calculate_merkle_root_naively(hashes: Vec<[u8; 32]>) -> [u8; 32] {
-    let mut hashes = hashes;
-    if hashes.len() == 0 {
-        return [0; 32];
-    }
-    let mut hasher = Sha256::new();
-    while hashes.len() > 1 {
-        // duplicate last element if odd number of elements
-        // there is a potential problem, see https://github.com/bitcoin/bitcoin/blob/master/src/consensus/merkle.cpp#L8
-        // but it is not a problem for us as we upload client's files,
-        // so the client can only harm himself and not the whole system.
-        if hashes.len() % 2 == 1 {
-            hashes.push(hashes.last().unwrap().clone());
-        }
-        for i in (0..hashes.len()).step_by(2) {
-            hasher.update(hashes[i]);
-            hasher.update(hashes[i + 1]);
-            let hash = hasher.finalize_reset().into();
-            /* println!(
-                "Inner Hash of {} and {}: {:?}",
-                hex_hash(&hashes[i]),
-                hex_hash(&hashes[i + 1]),
-                hex_hash(&hash)
-            ); */
-            hashes[i / 2] = hash;
-        }
-        hashes.truncate(hashes.len() / 2);
-    }
-    return hashes[0];
-}
-
 fn calculate_merkle_tree_level(hashes: &mut Vec<[u8; 32]>) -> Vec<[u8; 32]> {
     let mut hasher = Sha256::new();
     let mut level_hashes = Vec::with_capacity(hashes.len() / 2);
@@ -196,49 +161,39 @@ fn calculate_merkle_tree_level(hashes: &mut Vec<[u8; 32]>) -> Vec<[u8; 32]> {
     level_hashes
 }
 
-pub fn make_merkle_proof(hashes: &Vec<[u8; 32]>, file_index: usize) -> Vec<[u8; 32]> {
-    let size = hashes.len();
-    assert!(file_index < size);
-    if size == 0 {
-        return vec![[0; 32]];
-    }
-    if size == 1 {
-        return hashes.clone();
-    }
-    let proof_size = (size as f64).log2().ceil() as usize;
-    println!("Proof size of {} hashes: {}", size, proof_size);
-    let mut proof = Vec::with_capacity(proof_size);
-    if file_index % 2 == 0 {
-        proof.push(hashes[file_index + 1]);
-    } else {
-        proof.push(hashes[file_index - 1]);
-    };
-
-    proof
-}
-
-/*
-                   A               A
-                 /  \            /   \
-               B     C         B       C
-              / \    |        / \     / \
-             D   E   F       D   E   F   F
-            / \ / \ / \     / \ / \ / \ / \
-            1 2 3 4 5 6     1 2 3 4 5 6 5 6
-*/
-
-pub fn calculate_merkle_root_from_proof(hash: [u8; 32], proof: &Vec<[u8; 32]>) -> [u8; 32] {
+/// Calculate merkle root from the hash of the file and the merkle proof.
+pub fn calculate_merkle_root_from_proof(
+    mut index: usize,
+    hash: &[u8; 32],
+    proof: &Vec<[u8; 32]>,
+) -> [u8; 32] {
     let mut hasher = Sha256::new();
-    let mut hash = hash;
+    let mut hash = hash.clone();
     for sibling in proof {
-        hasher.update(hash);
-        hasher.update(sibling);
+        if index % 2 == 0 {
+            hasher.update(hash);
+            hasher.update(sibling);
+        } else {
+            hasher.update(sibling);
+            hasher.update(hash);
+        }
         hash = hasher.finalize_reset().into();
+        index /= 2;
     }
     hash
 }
 
-pub fn verify_merkle_root(merkle_root: &[u8; 32], proof: &Vec<[u8; 32]>) -> Result<(), [u8; 32]> {
-    Result::Ok(())
+pub fn verify_file(
+    merkle_root: &[u8; 32],
+    file_index: usize,
+    file_hash: &[u8; 32],
+    proof: &Vec<[u8; 32]>,
+) -> Result<(), [u8; 32]> {
+    let calculated_merkle_root = calculate_merkle_root_from_proof(file_index, file_hash, proof);
+    if calculated_merkle_root != *merkle_root {
+        return Err(calculated_merkle_root);
+    } else {
+        return Ok(());
+    }
 }
 // Merkle tree implementation
