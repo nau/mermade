@@ -4,6 +4,7 @@ use std::fs;
 use std::fs::File;
 use std::io;
 use std::path::Path;
+
 // We need to get the files in some order to ensure that the merkle root is always the same.
 // There are two ways to do this:
 // 1. Sort the files by name.
@@ -38,6 +39,7 @@ pub fn hash_file_by_path(path: &Path) -> [u8; 32] {
     hash.into()
 }
 
+/// Convert a hash to a hex string.
 pub fn hex_hash(hash: &[u8; 32]) -> String {
     hash.iter()
         .map(|byte| format!("{:02x}", byte))
@@ -154,10 +156,11 @@ fn calculate_merkle_tree_level(hashes: &mut Vec<[u8; 32]>) -> Vec<[u8; 32]> {
 
 /// Calculate merkle root from the hash of the file and the merkle proof.
 pub fn calculate_merkle_root_from_proof(
-    mut index: usize,
+    index: usize,
     hash: &[u8; 32],
     proof: &Vec<[u8; 32]>,
 ) -> [u8; 32] {
+    let mut index = index;
     let mut hasher = Sha256::new();
     let mut hash = hash.clone();
     for sibling in proof {
@@ -174,6 +177,7 @@ pub fn calculate_merkle_root_from_proof(
     hash
 }
 
+/// Verify that the merkle root is correct for the given file hash and proof.
 pub fn verify_file(
     merkle_root: &[u8; 32],
     file_index: usize,
@@ -187,4 +191,78 @@ pub fn verify_file(
         return Ok(());
     }
 }
-// Merkle tree implementation
+
+#[cfg(test)]
+mod tests {
+    use crate::merkle::*;
+    use hex_literal::hex;
+
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn all_proofs_are_valid(hashes in any::<Vec<[u8;32]>>()) {
+            // create a merkle tree from random hashes
+            let mtree = MerkleTree::from_hashes(hashes.clone());
+            // for each hash, generate a proof and verify it
+            for (index, hash) in hashes.iter().enumerate() {
+              let proof = mtree.make_merkle_proof(index);
+              let root = calculate_merkle_root_from_proof(index, hash, &proof);
+              // forall hashes, the merkle root from a proof should be the same as the merkle root of the tree
+              assert_eq!( root, *mtree.get_merkle_root() );
+              // forall hashes, verify_file should return Ok(())
+              assert_eq!(
+                  verify_file(mtree.get_merkle_root(), index, hash, &proof),
+                  Ok(())
+              );
+          }
+        }
+    }
+
+    #[test]
+    fn merkle_tree_root_on_empty_hashes() {
+        let hashes: Vec<[u8; 32]> = Vec::new();
+        let mtree = MerkleTree::from_hashes(hashes);
+        let root = mtree.get_merkle_root();
+        assert_eq!(root, &[0u8; 32])
+    }
+
+    #[test]
+    fn merkle_tree_root_on_single_hash() {
+        let hash: [u8; 32] =
+            hex!("1d26c74fd25a4c3dbb09e029fc609588da499fd4af2a41c88f6316c7f8c54cf1");
+        let hashes = vec![hash];
+        let mtree = MerkleTree::from_hashes(hashes);
+        let root = mtree.get_merkle_root();
+        assert_eq!(root, &hash)
+    }
+
+    #[test]
+    fn merkle_tree_root_verify() {
+        let hashes = vec![
+            hex!("1d26c74fd25a4c3dbb09e029fc609588da499fd4af2a41c88f6316c7f8c54cf1"),
+            hex!("44c92e3a70ad3307b7056871c2bdb096d8bfa9373f5bf06a79bb6324a20ff2fb"),
+            hex!("fe2d958bad389d6522b04844acc0dced92bcdce95c87971ccbe0f3ad74543f0e"),
+            hex!("bbd1319ff740a5546ea65c0d3596672a3705cb9f496012ad6f089e1e0ab6331d"),
+            hex!("c5fbbae0208e0c69e6f28fddce5b3770141c405f50100f666dce23c110090345"),
+            hex!("dcbccb66ce7ebd666ce5837ce9d73df56049538623e4492ad6b98b37de9751ac"),
+        ];
+        let mtree = MerkleTree::from_hashes(hashes.clone());
+        assert_eq!(
+            *mtree.get_merkle_root(),
+            hex!("909f4133d05851b483a924b2f3b565651a59efc2ecfcf522c161e446f9638a74")
+        );
+        for (index, hash) in hashes.iter().enumerate() {
+            let proof = mtree.make_merkle_proof(index);
+            let root = calculate_merkle_root_from_proof(index, hash, &proof);
+            assert_eq!(
+                root,
+                hex!("909f4133d05851b483a924b2f3b565651a59efc2ecfcf522c161e446f9638a74")
+            );
+            assert_eq!(
+                verify_file(mtree.get_merkle_root(), index, hash, &proof),
+                Ok(())
+            );
+        }
+    }
+}
