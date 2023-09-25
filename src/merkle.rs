@@ -58,27 +58,43 @@ pub fn show_file_hashes() {
     println!("Merkle root: {}", hex_hash(&merkle_root));
 }
 
-struct MerkleTree {
+pub struct MerkleTree {
     hashes: Vec<Vec<[u8; 32]>>,
 }
 
 impl MerkleTree {
-    fn from_hashes(hashes: Vec<[u8; 32]>) -> Self {
-        let mut hashes = hashes;
+    pub fn from_hashes(hashes: Vec<[u8; 32]>) -> Self {
         let mut levels = Vec::<Vec<[u8; 32]>>::new();
 
         if hashes.len() == 0 {
             levels.push(vec![[0u8; 32]]);
             return MerkleTree { hashes: levels };
         }
+
+        if hashes.len() == 1 {
+            levels.push(hashes);
+            return MerkleTree { hashes: levels };
+        }
+        let mut level_hashes = hashes;
+        loop {
+            let next_level_hashes = calculate_merkle_tree_level(&mut level_hashes);
+            let level_size = next_level_hashes.len();
+            println!("Level size: {}", level_size);
+            levels.push(level_hashes);
+            level_hashes = next_level_hashes;
+            if level_size == 1 {
+                levels.push(level_hashes);
+                break;
+            }
+        }
         MerkleTree { hashes: levels }
     }
 
-    fn get_merkle_root(&self) -> &[u8; 32] {
+    pub fn get_merkle_root(&self) -> &[u8; 32] {
         &self.hashes.last().unwrap()[0]
     }
 
-    fn make_merkle_proof(&self, index: usize) -> Vec<[u8; 32]> {
+    pub fn make_merkle_proof(&self, index: usize) -> Vec<[u8; 32]> {
         fn make_merkle_proof_inner(
             hashes: &Vec<[u8; 32]>,
             index: usize,
@@ -150,6 +166,25 @@ pub fn calculate_merkle_root_naively(hashes: Vec<[u8; 32]>) -> [u8; 32] {
         hashes.truncate(hashes.len() / 2);
     }
     return hashes[0];
+}
+
+fn calculate_merkle_tree_level(hashes: &mut Vec<[u8; 32]>) -> Vec<[u8; 32]> {
+    let mut hasher = Sha256::new();
+    let mut level_hashes = Vec::with_capacity(hashes.len() / 2);
+    // duplicate last element if odd number of elements
+    // there is a potential problem, see https://github.com/bitcoin/bitcoin/blob/master/src/consensus/merkle.cpp#L8
+    // but it is not a problem for us as we upload client's files,
+    // so the client can only harm himself and not the whole system.
+    if hashes.len() % 2 == 1 {
+        hashes.push(hashes.last().unwrap().clone());
+    }
+    for i in (0..hashes.len()).step_by(2) {
+        hasher.update(hashes[i]);
+        hasher.update(hashes[i + 1]);
+        let hash = hasher.finalize_reset().into();
+        level_hashes.push(hash);
+    }
+    level_hashes
 }
 
 pub fn make_merkle_proof(hashes: &Vec<[u8; 32]>, file_index: usize) -> Vec<[u8; 32]> {
