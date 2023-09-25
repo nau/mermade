@@ -32,7 +32,8 @@ async fn main() -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use crate::merkle::{
-        calculate_merkle_root_naively, hex_hash, make_merkle_proof, show_file_hashes, MerkleTree,
+        calculate_merkle_root_from_proof, calculate_merkle_root_naively, hex_hash,
+        make_merkle_proof, show_file_hashes, MerkleTree,
     };
     use hex_literal::hex;
 
@@ -96,6 +97,14 @@ mod tests {
         println!(
             "Proof: {:?}",
             proof.iter().map(hex_hash).collect::<Vec<_>>()
+        );
+        let root = calculate_merkle_root_from_proof(
+            hex!("1d26c74fd25a4c3dbb09e029fc609588da499fd4af2a41c88f6316c7f8c54cf1"),
+            &proof,
+        );
+        assert_eq!(
+            root,
+            hex!("909f4133d05851b483a924b2f3b565651a59efc2ecfcf522c161e446f9638a74")
         );
     }
 }

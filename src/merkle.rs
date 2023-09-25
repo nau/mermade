@@ -226,6 +226,18 @@ pub fn make_merkle_proof(hashes: &Vec<[u8; 32]>, file_index: usize) -> Vec<[u8; 
             / \ / \ / \     / \ / \ / \ / \
             1 2 3 4 5 6     1 2 3 4 5 6 5 6
 */
+
+pub fn calculate_merkle_root_from_proof(hash: [u8; 32], proof: &Vec<[u8; 32]>) -> [u8; 32] {
+    let mut hasher = Sha256::new();
+    let mut hash = hash;
+    for sibling in proof {
+        hasher.update(hash);
+        hasher.update(sibling);
+        hash = hasher.finalize_reset().into();
+    }
+    hash
+}
+
 pub fn verify_merkle_root(merkle_root: &[u8; 32], proof: &Vec<[u8; 32]>) -> Result<(), [u8; 32]> {
     Result::Ok(())
 }
