@@ -6,6 +6,8 @@ use actix_multipart::Multipart;
 use serde::Serialize;
 mod merkle;
 use actix_form_data::{Error, Field, Form, Value};
+use futures::{StreamExt, TryStreamExt};
+use std::io::Write;
 
 #[derive(Serialize)]
 struct Message {
@@ -17,56 +19,32 @@ async fn hello() -> impl Responder {
 }
 
 async fn upload_file(mut payload: Multipart) -> impl Responder {
-    println!("Uploading file...");
-    let upload_status = files::save_file(payload, "/path/filename.jpg".to_string()).await;
-
-    match upload_status {
-        Some(true) => HttpResponse::Ok()
-            .content_type("text/plain")
-            .body("update_succeeded"),
-        _ => HttpResponse::BadRequest()
-            .content_type("text/plain")
-            .body("update_failed"),
-    }
-}
-
-async fn upload(uploaded_content: Value<()>) -> HttpResponse {
-    println!("Uploaded Content: {:#?}", uploaded_content);
-    HttpResponse::Created().finish()
-}
-
-pub mod files {
-    use std::io::Write;
-
-    use actix_multipart::Multipart;
-    use futures::{StreamExt, TryStreamExt};
-
-    pub async fn save_file(mut payload: Multipart, dir: String) -> Option<bool> {
-        // iterate over multipart stream
-        let mut index = 0;
-        while let Ok(Some(mut field)) = payload.try_next().await {
-            // let file_index = content_type
-            let content_disposition = field.content_disposition();
-            let filename = content_disposition.get_filename().unwrap();
-            let index = filename.parse::<usize>().unwrap();
-            let filepath = index.to_string();
-            println!("File index {}, path {}", index, filepath);
-
-            // File::create is blocking operation, use threadpool
-            let mut f = std::fs::File::create(filepath).unwrap();
-            // Field in turn is stream of *Bytes* object
-            while let Some(chunk) = field.next().await {
-                let data = chunk.unwrap();
-                // filesystem operations are blocking, we have to use threadpool
-                dbg!(&data);
-                // f.write_all(&data).unwrap();
-                f.write_all(&data).unwrap();
+    // iterate over multipart stream
+    while let Ok(Some(mut field)) = payload.try_next().await {
+        let content_disposition = field.content_disposition();
+        let filename = content_disposition.get_filename().unwrap();
+        let index = match filename.parse::<usize>() {
+            Ok(index) => index,
+            Err(_) => {
+                return HttpResponse::BadRequest().body(format!(
+                    "Invalid filename. Must be an index of the file, but got: {}",
+                    filename
+                ));
             }
-            f.sync_all().unwrap();
-        }
+        };
+        let filepath = index.to_string();
+        println!("File index {}, path {}", index, filepath);
 
-        Some(true)
+        // File::create is blocking operation, use threadpool
+        let mut f = std::fs::File::create(filepath).unwrap();
+        // Field in turn is stream of *Bytes* object
+        while let Some(chunk) = field.next().await {
+            let data = chunk.unwrap();
+            f.write_all(&data).unwrap();
+        }
+        f.sync_all().unwrap();
     }
+    HttpResponse::Ok().finish()
 }
 
 #[actix_web::main]
@@ -75,11 +53,6 @@ async fn server() -> std::io::Result<()> {
         .format_timestamp(None)
         .format_module_path(false)
         .init();
-
-    let form = Form::new().field(
-        "file",
-        Field::file(|_, _, mut stream| async move { Ok(()) as Result<(), Error> }),
-    );
 
     let server = HttpServer::new(|| {
         App::new()
