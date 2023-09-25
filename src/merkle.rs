@@ -85,7 +85,6 @@ impl MerkleTree {
         loop {
             let next_level_hashes = calculate_merkle_tree_level(&mut level_hashes);
             let level_size = next_level_hashes.len();
-            println!("Level size: {}", level_size);
             levels.push(level_hashes);
             level_hashes = next_level_hashes;
             if level_size == 1 {
@@ -94,6 +93,10 @@ impl MerkleTree {
             }
         }
         MerkleTree { levels }
+    }
+
+    pub fn size(&self) -> usize {
+        self.levels[0].len()
     }
 
     /// Get the merkle root of the tree.
@@ -109,23 +112,11 @@ impl MerkleTree {
         if proof_size == 0 {
             return vec![];
         }
-        println!(
-            "Proof size of {} for hashes {}",
-            proof_size,
-            self.levels[0].len()
-        );
         let mut proof = Vec::with_capacity(proof_size - 1);
         for level in 0..proof_size {
             let level_hashes = &self.levels[level];
             let idx = index / 2usize.pow(level as u32);
             let proof_hash_idx = if idx % 2 == 0 { idx + 1 } else { idx - 1 };
-            println!(
-                "Level size: {}, idx: {}, proof_hash_idx: {}, proof: {}",
-                level_hashes.len(),
-                idx,
-                proof_hash_idx,
-                hex_hash(&level_hashes[proof_hash_idx])
-            );
             proof.push(level_hashes[proof_hash_idx]);
         }
         proof

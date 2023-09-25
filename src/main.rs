@@ -34,6 +34,28 @@ mod tests {
     use crate::merkle::*;
     use hex_literal::hex;
 
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn all_proofs_are_valid(hashes in any::<Vec<[u8;32]>>()) {
+            // create a merkle tree from random hashes
+            let mtree = MerkleTree::from_hashes(hashes.clone());
+            // for each hash, generate a proof and verify it
+            for (index, hash) in hashes.iter().enumerate() {
+              let proof = mtree.make_merkle_proof(index);
+              let root = calculate_merkle_root_from_proof(index, hash, &proof);
+              // forall hashes, the merkle root from a proof should be the same as the merkle root of the tree
+              assert_eq!( root, *mtree.get_merkle_root() );
+              // forall hashes, verify_file should return Ok(())
+              assert_eq!(
+                  verify_file(mtree.get_merkle_root(), index, hash, &proof),
+                  Ok(())
+              );
+          }
+        }
+    }
+
     #[test]
     fn merkle_tree_root_on_empty_hashes() {
         let hashes: Vec<[u8; 32]> = Vec::new();
