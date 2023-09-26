@@ -1,4 +1,4 @@
-# Zama Merkle Tree Client/Server Challenge
+# Mermade – Zama Merkle Tree Client/Server Challenge
 
 ## Challenge
 
@@ -73,4 +73,4 @@ where "ff" is the Merkle Root.
 
 This is not the most efficient way to store the tree, but it's  simple, easy to implement, and it works. From this implementation it's trivial to derive both Merkle root and proofs.
 
-If this is a problem, I can implement a "rolling" Merkle root computation, requiring ~log2(N) memory, where N is the number of files.
+If needed I can implement a "rolling" Merkle root computation, requiring ~2*log2(N) memory, where N is the number of files.
