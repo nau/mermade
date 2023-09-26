@@ -1,5 +1,6 @@
 use sha2::Digest;
 use sha2::Sha256;
+use std::fmt;
 use std::fs;
 use std::fs::File;
 use std::io;
@@ -50,19 +51,6 @@ pub fn hex_hash(hash: &[u8; 32]) -> String {
     hash.iter()
         .map(|byte| format!("{:02x}", byte))
         .collect::<String>()
-}
-
-pub fn show_file_hashes() {
-    let files = list_files_in_order(".");
-    let mut hashes: Vec<[u8; 32]> = Vec::with_capacity(files.len());
-    for file in files {
-        let hash = hash_file_by_path(Path::new(&file));
-        hashes.push(hash);
-        let hex_string = hex_hash(&hash);
-        println!("{}: {}", file.display(), hex_string);
-    }
-    let merkle_tree = MerkleTree::from_hashes(hashes);
-    println!("Merkle root: {}", hex_hash(merkle_tree.get_merkle_root()));
 }
 
 pub struct MerkleTree {
@@ -129,15 +117,25 @@ impl MerkleTree {
         }
         proof
     }
+}
 
-    pub fn show(&self) {
-        for (level, hashes) in self.levels.iter().enumerate() {
-            println!(
-                "Level {}: {:?}",
-                level,
-                hashes.iter().map(hex_hash).collect::<Vec<_>>()
-            );
-        }
+impl fmt::Display for MerkleTree {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Write the formatted representation of the Merkle tree to the provided formatter
+        let str = self
+            .levels
+            .iter()
+            .enumerate()
+            .map(|(level, hashes)| {
+                format!(
+                    "Level {}: {:?}",
+                    level,
+                    hashes.iter().map(hex_hash).collect::<Vec<_>>()
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        write!(f, "{}", str)
     }
 }
 
@@ -181,6 +179,21 @@ pub fn calculate_merkle_root_from_proof(
         index /= 2;
     }
     hash
+}
+
+/// Verify that the merkle root is correct for the given file hash and proof.
+pub fn verify_file(
+    merkle_root: &[u8; 32],
+    file_index: usize,
+    file_hash: &[u8; 32],
+    proof: &Vec<[u8; 32]>,
+) -> Result<(), [u8; 32]> {
+    let calculated_merkle_root = calculate_merkle_root_from_proof(file_index, file_hash, proof);
+    if calculated_merkle_root != *merkle_root {
+        return Err(calculated_merkle_root);
+    } else {
+        return Ok(());
+    }
 }
 
 #[cfg(test)]
