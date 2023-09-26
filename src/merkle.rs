@@ -14,7 +14,7 @@ use std::path::PathBuf;
 //    This is name-independent approach, but it is slower as it requires two passes over the files.
 // Here we use the first approach.
 // We read the current working directory and sort the files by name.
-pub fn list_files_in_order(dir: &Path) -> Vec<PathBuf> {
+pub fn list_files_in_order<P: AsRef<Path>>(dir: P) -> Vec<PathBuf> {
     let mut files = Vec::new();
     let mut paths: Vec<_> = fs::read_dir(dir)
         .map(|rd| rd.map(|dir| dir.unwrap()).collect())
@@ -36,7 +36,7 @@ pub fn list_files_in_order(dir: &Path) -> Vec<PathBuf> {
     files
 }
 
-pub fn hash_file_by_path(path: &Path) -> [u8; 32] {
+pub fn hash_file_by_path<P: AsRef<Path>>(path: P) -> [u8; 32] {
     let mut file = File::open(path).unwrap();
     let mut hasher = Sha256::new();
     // TODO: use buffered reader if needed
@@ -182,21 +182,6 @@ pub fn calculate_merkle_root_from_proof(
         index /= 2;
     }
     hash
-}
-
-/// Verify that the merkle root is correct for the given file hash and proof.
-pub fn verify_file(
-    merkle_root: &[u8; 32],
-    file_index: usize,
-    file_hash: &[u8; 32],
-    proof: &Vec<[u8; 32]>,
-) -> Result<(), [u8; 32]> {
-    let calculated_merkle_root = calculate_merkle_root_from_proof(file_index, file_hash, proof);
-    if calculated_merkle_root != *merkle_root {
-        return Err(calculated_merkle_root);
-    } else {
-        return Ok(());
-    }
 }
 
 #[cfg(test)]
