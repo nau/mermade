@@ -42,7 +42,6 @@ pub fn hash_file_by_path<P: AsRef<Path>>(path: P) -> [u8; 32] {
     // TODO: use buffered reader if needed
     io::copy(&mut file, &mut hasher).unwrap();
     let hash = hasher.finalize();
-    format!("{:x}", hash);
     hash.into()
 }
 

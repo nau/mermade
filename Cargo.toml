@@ -9,7 +9,7 @@ edition = "2021"
 actix-web = "4"
 actix-multipart = "0.6.1"
 actix-files = "0.6"
-reqwest = { version = "0.11", features = ["blocking"] }
+reqwest = { version = "0.11", features = ["blocking", "multipart"] }
 futures = "0.3"
 #actix-web-actors = "4.0.0-beta.9"
 #actix-rt = "2.5.2"

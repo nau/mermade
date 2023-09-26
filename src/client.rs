@@ -1,7 +1,15 @@
 use crate::merkle::*;
+use reqwest::blocking::multipart;
+use sha2::Digest;
+use sha2::Sha256;
+use std::fs;
 use std::fs::File;
+use std::io;
+use std::io::Read;
 use std::io::Write;
 use std::path::Path;
+use std::path::PathBuf;
+use std::process;
 
 pub struct Client {
     server_url: String,
@@ -18,18 +26,32 @@ impl Client {
         }
     }
 
-    pub fn upload_files(&self) {
-        todo!()
-    }
-
     pub fn upload_all_and_delete(&self) {
-        self.store_merkle_root();
-        self.upload_files();
+        let files = list_files_in_order(&self.files_dir);
+        println!("Uploading {} files...", files.len());
+        let client = reqwest::blocking::Client::new();
+        let url = format!("{}/upload", self.server_url);
+        for file in files {
+            println!("Uploading file {}", &file.display());
+            // TODO: use buffered reader if needed
+            // TODO: read each file only once
+            let form = multipart::Form::new().file("file", file).unwrap();
+            let response = client.post(&url).multipart(form).send().unwrap();
+            if !response.status().is_success() {
+                eprintln!("Failed to upload file. HTTP Response: {:?}", response);
+                process::exit(1);
+            }
+        }
+        if let Err(e) = self.store_merkle_root() {
+            eprintln!("Failed to store merkle root: {}", e);
+            process::exit(1);
+        }
+        // delete files
         self.delete_files();
     }
 
     fn delete_files(&self) {
-        todo!()
+        println!("Deleting files...");
     }
 
     fn store_merkle_root(&self) -> Result<(), std::io::Error> {
@@ -56,7 +78,6 @@ impl Client {
         &self,
         file_index: usize,
     ) -> Result<actix_web::web::Bytes, reqwest::Error> {
-        let client = reqwest::blocking::Client::new();
         let url = format!("{}/files/{}", self.server_url, file_index);
         return reqwest::blocking::get(url)?.bytes();
 

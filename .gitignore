@@ -1,1 +1,8 @@
 /target
+server
+files
+Cargo.lock
+.DS_Store
+flake*
+.vscode
+merkle_root

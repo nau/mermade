@@ -53,6 +53,10 @@ async fn hello() -> impl Responder {
 }
 
 async fn upload_file(mut payload: Multipart) -> impl Responder {
+    let files_dir = PathBuf::from("files");
+    if !files_dir.exists() {
+        std::fs::create_dir(files_dir).unwrap();
+    }
     // iterate over multipart stream
     while let Ok(Some(mut field)) = payload.try_next().await {
         let content_disposition = field.content_disposition();
