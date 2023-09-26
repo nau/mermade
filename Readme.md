@@ -21,7 +21,7 @@ a report (max 2-3 pages) explaining your approach, your other ideas, what went w
 1. I assume the purpose of the challenge is to demonstrate the ability to code, design and implement a solution that is production ready, but not necessarily to implement a production ready solution. I will therefore make some assumptions and take some shortcuts to save our time.
 1. There are many questions that I would ask if this was a real project, but I won't. I'll make more assumptions instead.
 1. I assume the "large set of potentially small files" means that eash file is small enough to fit in memory to calculate its hash without streaming, and "large set" means up to several millions of files. My implementation stores the whole Merkle tree in memory, requiring ~64 bytes per file. So, for 1 million files it will require ~64MB of memory. I assume this is acceptable on a modern client or server.
-1. I assume the files named by their index, like "0", "1", "2", etc.
+1. I assume the files to upload are named by their index, like "0", "1", "2", etc.
 1. I assume the client and the server are on the same network, so I don't need to implement any authentication or encryption.
 1. I assume the server has enough disk space to store all files.
 1. I assume the server has only one client, although it's easy to extend the solution to support multiple clients, and even shard to multiple servers using a load balancer.
@@ -74,3 +74,10 @@ where "ff" is the Merkle Root.
 This is not the most efficient way to store the tree, but it's  simple, easy to implement, and it works. From this implementation it's trivial to derive both Merkle root and proofs.
 
 If needed I can implement a "rolling" Merkle root computation, requiring ~2*log2(N) memory, where N is the number of files.
+
+## Other
+
+In prod-level solution I would add logging, metrics, more tests, and better error handling, configuration, multiple clients, file sharing, merkle proofs recalculation on file changes, backpressure, rate limiting, etc.
+
+I've implemented this in Rust mostly for fun, and because you use Rust internally.
+I'm not a Rust expert, so I'm sure there are many things I could do better.
