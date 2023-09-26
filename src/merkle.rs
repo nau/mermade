@@ -15,17 +15,30 @@ use std::path::Path;
 // We read the current working directory and sort the files by name.
 pub fn list_files_in_order() -> Vec<String> {
     let mut files = Vec::new();
-    let mut paths: Vec<_> = fs::read_dir(".").unwrap().map(|r| r.unwrap()).collect();
+    let mut paths: Vec<_> = fs::read_dir(".")
+        .map(|rd| rd.map(|dir| dir.unwrap()).collect())
+        .unwrap_or_else(|_| {
+            println!("Failed to read the current directory");
+            Vec::new()
+        });
     paths.sort_by_key(|dir| dir.path());
 
     for path in paths {
-        let metadata = path.metadata().unwrap();
         // we only support regular files, no symlinks, directories, etc.
-        if metadata.is_file() {
-            files.push(path.path().display().to_string());
+        match path.metadata() {
+            Ok(metadata) if metadata.is_file() => {
+                files.push(
+                    path.path()
+                        .file_name()
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                        .to_string(),
+                );
+            }
+            _ => {}
         }
     }
-    println!("{:?}", files);
     files
 }
 
