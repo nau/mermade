@@ -7,8 +7,8 @@ fn upload_files(server_ip: &str, dir: &Path) {
     todo!()
 }
 
-pub fn upload_all_and_delete(server_ip: &str, mr_dir: &Path, files_dir: &Path) {
-    store_merkle_root(files_dir, mr_dir);
+pub fn upload_all_and_delete(server_ip: &str, merkle_root_file_path: &Path, files_dir: &Path) {
+    store_merkle_root(files_dir, merkle_root_file_path);
     upload_files(server_ip, files_dir);
     delete_files(files_dir);
 }

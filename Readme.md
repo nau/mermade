@@ -1,5 +1,7 @@
 # Zama Merkle Tree Client/Server Challenge
 
+## Challenge
+
 Imagine a client has a large set of potentially small files {F0, F1, …, Fn} and wants to upload them to a server and then delete its local copies. The client wants, however, to later download an arbitrary file from the server and be convinced that the file is correct and is not corrupted in any way (in transport, tampered with by the server, etc.).
 
 You should implement the client, the server and a Merkle tree to support the above (we expect you to implement the Merkle tree rather than use a library, but you are free to use a library for the underlying hash functions).
@@ -40,16 +42,18 @@ The server IP address is passed as a command line argument.
 
 Then it uploads all files to the server, one by one, using REST API POST "/upload". I could use multipart upload, but I decided to keep it simple.
 
-A client can request a file by its index, using REST API GET "/download/{index}". It will receive the file and a Merkle proof for it.
+A client can request a file by its index using REST API GET "/files/{index}".
+
+A client can request a proof for a file by its index using REST API GET "/proofs/{index}".
 
 The client verifies the file using the Merkle proof and the Merkle Root it has stored in `$HOME` directory.
 
 The server stores all files in a directory named "files" in the current working directory.
 
-On client's first GET request, the server calculates the Merkle tree for all files and stores it in memory.
-This isn't the best solution, but it's simple and it works.
+On client's first GET request, the server computes Merkle proofs for each file and stores them in _proof_ files in "proofs" directory.
 
-Another nice and simple solution would be to compute Merkle proofs for each file and store them in a separate _proof_ files.
+This is a very simple and efficient solution. The Merkle tree and proofs are computed only once, and proofs are essentially cached. Serving static files is very efficient.
+
 Then, on client GET request, the server would simply [`sendfile`](https://linuxgazette.net/issue91/tranter.html) the file and the proof file to the client. It would be very fast and efficient.
 
 ## Merke Tree
@@ -67,6 +71,6 @@ So, for 3 files with hashes "aa", "bb", "cc" the tree will look like this:
 
 where "ff" is the Merkle Root.
 
-This is not the most efficient way to store the tree, but it's  simple, easy to implement, and it works. From this implementation it's trivial to compute Merkle proofs.
+This is not the most efficient way to store the tree, but it's  simple, easy to implement, and it works. From this implementation it's trivial to derive both Merkle root and proofs.
 
 If this is a problem, I can implement a "rolling" Merkle root computation, requiring ~log2(N) memory, where N is the number of files.
