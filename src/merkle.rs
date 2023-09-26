@@ -4,6 +4,7 @@ use std::fs;
 use std::fs::File;
 use std::io;
 use std::path::Path;
+use std::path::PathBuf;
 
 // We need to get the files in some order to ensure that the merkle root is always the same.
 // There are two ways to do this:
@@ -13,9 +14,9 @@ use std::path::Path;
 //    This is name-independent approach, but it is slower as it requires two passes over the files.
 // Here we use the first approach.
 // We read the current working directory and sort the files by name.
-pub fn list_files_in_order() -> Vec<String> {
+pub fn list_files_in_order(dir: &str) -> Vec<PathBuf> {
     let mut files = Vec::new();
-    let mut paths: Vec<_> = fs::read_dir(".")
+    let mut paths: Vec<_> = fs::read_dir(dir)
         .map(|rd| rd.map(|dir| dir.unwrap()).collect())
         .unwrap_or_else(|_| {
             println!("Failed to read the current directory");
@@ -27,14 +28,7 @@ pub fn list_files_in_order() -> Vec<String> {
         // we only support regular files, no symlinks, directories, etc.
         match path.metadata() {
             Ok(metadata) if metadata.is_file() => {
-                files.push(
-                    path.path()
-                        .file_name()
-                        .unwrap()
-                        .to_str()
-                        .unwrap()
-                        .to_string(),
-                );
+                files.push(path.path());
             }
             _ => {}
         }
@@ -60,13 +54,13 @@ pub fn hex_hash(hash: &[u8; 32]) -> String {
 }
 
 pub fn show_file_hashes() {
-    let files = list_files_in_order();
+    let files = list_files_in_order(".");
     let mut hashes: Vec<[u8; 32]> = Vec::with_capacity(files.len());
     for file in files {
         let hash = hash_file_by_path(Path::new(&file));
         hashes.push(hash);
         let hex_string = hex_hash(&hash);
-        println!("{}: {}", file, hex_string);
+        println!("{}: {}", file.display(), hex_string);
     }
     let merkle_tree = MerkleTree::from_hashes(hashes);
     println!("Merkle root: {}", hex_hash(merkle_tree.get_merkle_root()));

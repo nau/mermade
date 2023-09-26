@@ -1,3 +1,4 @@
+use actix_files;
 use actix_files::NamedFile;
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder, Result};
 use env_logger;
@@ -23,19 +24,25 @@ fn compute_proofs_if_needed() {
     if !proofs_dir.exists() {
         println!("Computing proofs...");
         std::fs::create_dir(proofs_dir).unwrap();
-        let files = list_files_in_order();
+        let files = list_files_in_order("files");
         println!("Files: {:?}", files);
         let mut hashes: Vec<[u8; 32]> = Vec::with_capacity(files.len());
         for file in &files {
-            let hash = hash_file_by_path(Path::new(&file));
+            let hash = hash_file_by_path(&file);
             hashes.push(hash);
         }
         let merkle_tree = MerkleTree::from_hashes(hashes);
         println!("Merkle root: {}", hex_hash(merkle_tree.get_merkle_root()));
         for file in &files {
-            let index = file.parse::<usize>().unwrap();
+            let index = file
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .parse::<usize>()
+                .unwrap();
             let proof = merkle_tree.make_merkle_proof(index);
-            let proof_file_path = format!("proofs/{}", index);
+            let proof_file_path = PathBuf::from("proofs").join(index.to_string());
             let mut proof_file = File::create(proof_file_path).unwrap();
             // Convert Vec<[u8; 32]> to Vec<u8>
             let flattened: Vec<u8> = proof.into_iter().flatten().collect();
@@ -62,8 +69,8 @@ async fn upload_file(mut payload: Multipart) -> impl Responder {
                 ));
             }
         };
-        let filepath = index.to_string();
-        println!("File index {}, path {}", index, filepath);
+        let filepath = PathBuf::from("files").join(index.to_string());
+        println!("File index {}, path {}", index, filepath.display());
 
         // File::create is blocking operation, use threadpool
         let mut f = std::fs::File::create(filepath).unwrap();
@@ -77,20 +84,21 @@ async fn upload_file(mut payload: Multipart) -> impl Responder {
     HttpResponse::Ok().finish()
 }
 
-#[get("/download/{fileindex}")]
+#[get("/files/{fileindex}")]
 async fn download_file(path: web::Path<String>) -> Result<NamedFile> {
-    println!("Downloading file {}", path);
     compute_proofs_if_needed();
-    let filename = path.into_inner();
+    let filename = PathBuf::from("files").join(path.into_inner());
+    println!("Downloading file {}", filename.display());
     // TODO: ensure that it's impossible to download files outside of the current directory
     let named_file = NamedFile::open(&filename)?;
     Ok(named_file)
 }
 
-#[get("/proof/{fileindex}")]
+#[get("/proofs/{fileindex}")]
 async fn download_proof(path: web::Path<String>) -> Result<NamedFile> {
-    println!("Downloading proof {}", path);
-    let file_path = PathBuf::from(format!("proofs/{}", path.into_inner()));
+    compute_proofs_if_needed();
+    let file_path = PathBuf::from("proofs").join(path.into_inner());
+    println!("Downloading proof {}", file_path.display());
     // TODO: ensure that it's impossible to download files outside of the current directory
     let named_file = NamedFile::open(&file_path)?;
     Ok(named_file)
@@ -108,7 +116,6 @@ pub async fn server() -> std::io::Result<()> {
             .service(download_file)
             .service(download_proof)
             .route("/upload", web::post().to(upload_file))
-            // .route("/download", web::get().to(download_file))
             .route("/", web::get().to(hello))
     });
 
