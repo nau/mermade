@@ -2,16 +2,13 @@ use actix_files;
 use actix_files::NamedFile;
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder, Result};
 use env_logger;
-use std::env;
 
 use crate::merkle::*;
 use actix_multipart::Multipart;
 use futures::{StreamExt, TryStreamExt};
 use serde::Serialize;
 use std::fs::File;
-use std::io::Read;
 use std::io::Write;
-use std::path::Path;
 use std::path::PathBuf;
 
 #[derive(Serialize)]

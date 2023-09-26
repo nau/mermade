@@ -14,7 +14,7 @@ use std::path::PathBuf;
 //    This is name-independent approach, but it is slower as it requires two passes over the files.
 // Here we use the first approach.
 // We read the current working directory and sort the files by name.
-pub fn list_files_in_order(dir: &str) -> Vec<PathBuf> {
+pub fn list_files_in_order(dir: &Path) -> Vec<PathBuf> {
     let mut files = Vec::new();
     let mut paths: Vec<_> = fs::read_dir(dir)
         .map(|rd| rd.map(|dir| dir.unwrap()).collect())
