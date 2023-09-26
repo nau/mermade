@@ -6,3 +6,4 @@ Cargo.lock
 flake*
 .vscode
 merkle_root
+.envrc
