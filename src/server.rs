@@ -121,7 +121,7 @@ async fn download_proof(path: web::Path<String>) -> Result<NamedFile> {
 }
 
 #[actix_web::main]
-pub async fn server() -> std::io::Result<()> {
+pub async fn server(port: &str) -> std::io::Result<()> {
     let server = HttpServer::new(|| {
         App::new()
             .service(download_file)
@@ -129,8 +129,7 @@ pub async fn server() -> std::io::Result<()> {
             .route("/upload", web::post().to(upload_file))
             .route("/", web::get().to(hello))
     });
-
-    println!("Starting server at 0.0.0.0:8080");
-
-    server.bind("0.0.0.0:8080")?.run().await
+    let addr = format!("0.0.0.0:{}", port);
+    println!("Starting server at {}", addr);
+    server.bind(addr)?.run().await
 }

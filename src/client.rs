@@ -1,4 +1,5 @@
 use crate::merkle::*;
+use indicatif::ProgressBar;
 use reqwest::blocking::multipart;
 use sha2::Digest;
 use sha2::Sha256;
@@ -13,10 +14,10 @@ pub fn upload_all_and_delete(server_url: &str, files_dir: &str) {
         process::exit(1);
     });
     eprintln!("Uploading {} files...", files.len());
+    let bar = ProgressBar::new(files.len() as u64);
     let client = reqwest::blocking::Client::new();
     let url = format!("{}/upload", server_url);
     for (index, file) in files.iter().enumerate() {
-        eprintln!("Uploading file {}", &file.display());
         // TODO: use buffered reader if needed
         // TODO: read each file only once
         // let form = multipart::Form::new().file("file", file).unwrap();
@@ -39,7 +40,9 @@ pub fn upload_all_and_delete(server_url: &str, files_dir: &str) {
             eprintln!("Failed to upload file. HTTP Response: {:?}", response);
             process::exit(1);
         }
+        bar.inc(1);
     }
+    bar.finish();
     // this traverses the files again, but it's ok for a demo
     if let Err(e) = output_merkle_root(files_dir) {
         eprintln!("Failed to output merkle root: {}", e);
@@ -53,6 +56,7 @@ fn delete_files() {
     eprintln!("Deleting files...");
     // I will not delete any files just in case,
     // it's a demo anyways.
+    eprintln!("Joking. I'm not deleting anything, it's a demo!");
 }
 
 fn output_merkle_root(files_dir: &str) -> Result<(), std::io::Error> {

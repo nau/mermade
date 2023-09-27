@@ -7,7 +7,7 @@ use client::*;
 fn show_usage() {
     println!("Usage: mermade <command> [args]");
     println!("Commands:");
-    println!("  server -- will start the server");
+    println!("  server <port> -- will start the server on the given port");
     println!(
         "  upload <server url> <files_dir> -- will upload all files in the <files_dir> directory to the server, output the merkle root to STDOUT and delete the files"
     );
@@ -19,8 +19,8 @@ fn show_usage() {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    if args.len() == 2 && args[1] == "server" {
-        let _ = server::server();
+    if args.len() == 3 && args[1] == "server" {
+        let _ = server::server(&args[2]);
     } else if args.len() == 4 && args[1] == "upload" {
         let server_url = &args[2];
         let files_dir = &args[3];
