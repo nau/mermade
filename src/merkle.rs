@@ -139,8 +139,7 @@ fn calculate_merkle_tree_level(hashes: &mut Vec<[u8; 32]>) -> Vec<[u8; 32]> {
     let mut level_hashes = Vec::with_capacity(hashes.len() / 2);
     // duplicate last element if odd number of elements
     // there is a potential problem, see https://github.com/bitcoin/bitcoin/blob/master/src/consensus/merkle.cpp#L8
-    // but it is not a problem for us as we upload client's files,
-    // so the client can only harm himself and not the whole system.
+    // but it is not a problem in our case
     if hashes.len() % 2 == 1 {
         hashes.push(hashes.last().unwrap().clone());
     }
