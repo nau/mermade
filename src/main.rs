@@ -8,12 +8,16 @@ fn show_usage() {
     println!("Usage: mermade <command> [args]");
     println!("Commands:");
     println!("  server <port> -- will start the server on the given port");
-    println!(
-        "  upload <server url> <files_dir> -- will upload all files in the <files_dir> directory to the server, output the merkle root to STDOUT and delete the files"
-    );
+    println!("  upload <server url> <files_dir> -- will upload all files in the <files_dir> directory to the server,
+          output the merkle root to STDOUT and delete the files.
+          The Merkle Root is written to STDOUT in HEX format.
+          Example: mermade upload http://localhost:8080 files > merkle_root.txt
+    ");
     println!("  download <server url> <index> -- will download the file with the given index from the server,
-    verify its merkle proof and output the file to stdout.
-    If the merkle proof is invalid, the program will exit with an error code.
+          verify its merkle proof and output the file to stdout.
+          The Merkle Root is read from STDIN in HEX format.
+          If the merkle proof is invalid, the program will exit with an error code.
+          Example: mermade download http://localhost:8080 0 > file.txt < merkle_root.txt
     ");
 }
 

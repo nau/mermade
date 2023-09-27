@@ -4,7 +4,6 @@ use reqwest::blocking::multipart;
 use sha2::Digest;
 use sha2::Sha256;
 use std::io;
-use std::io::Read;
 use std::io::Write;
 use std::process;
 
@@ -20,7 +19,6 @@ pub fn upload_all_and_delete(server_url: &str, files_dir: &str) {
     for (index, file) in files.iter().enumerate() {
         // TODO: use buffered reader if needed
         // TODO: read each file only once
-        // let form = multipart::Form::new().file("file", file).unwrap();
         let file_part = multipart::Part::file(file)
             .map(|p| p.file_name(index.to_string()))
             .unwrap_or_else(|e| {
@@ -73,7 +71,8 @@ fn output_merkle_root(files_dir: &str) -> Result<(), std::io::Error> {
         &files.len(),
         hex_hash(merkle_tree.get_merkle_root())
     );
-    io::stdout().write_all(merkle_tree.get_merkle_root())?;
+    // write string to stdout
+    io::stdout().write_all(hex_hash(merkle_tree.get_merkle_root()).as_bytes())?;
     Ok(())
 }
 
@@ -96,7 +95,11 @@ fn download_proof(
 // read Merkle root from stdin
 fn get_merkle_root() -> Result<[u8; 32], std::io::Error> {
     let mut merkle_root = [0u8; 32];
-    io::stdin().read_exact(&mut merkle_root)?;
+    // read a string from stdin
+    let mut merkle_root_hex = String::new();
+    io::stdin().read_line(&mut merkle_root_hex)?;
+    hex::decode_to_slice(merkle_root_hex, &mut merkle_root)
+        .expect("Invalid hex string for merkle root");
     Ok(merkle_root)
 }
 

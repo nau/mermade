@@ -86,10 +86,6 @@ impl MerkleTree {
         MerkleTree { levels }
     }
 
-    pub fn size(&self) -> usize {
-        self.levels[0].len()
-    }
-
     /// Get the merkle root of the tree.
     pub fn get_merkle_root(&self) -> &[u8; 32] {
         &self.levels.last().unwrap()[0]
