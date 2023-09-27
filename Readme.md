@@ -21,7 +21,6 @@ a report (max 2-3 pages) explaining your approach, your other ideas, what went w
 1. I assume the purpose of the challenge is to demonstrate the ability to code, design and implement a solution that is production ready, but not necessarily to implement a production ready solution. I will therefore make some assumptions and take some shortcuts to save our time.
 1. There are many questions that I would ask if this was a real project, but I won't. I'll make more assumptions instead.
 1. I assume the "large set of potentially small files" means that eash file is small enough to fit in memory to calculate its hash without streaming, and "large set" means up to several millions of files. My implementation stores the whole Merkle tree in memory, requiring ~64 bytes per file. So, for 1 million files it will require ~64MB of memory. I assume this is acceptable on a modern client or server.
-1. I assume the files to upload are named by their index, like "0", "1", "2", etc.
 1. I assume the client and the server are on the same network, so I don't need to implement any authentication or encryption.
 1. I assume the server has enough disk space to store all files.
 1. I assume the server has only one client, although it's easy to extend the solution to support multiple clients, and even shard to multiple servers using a load balancer.
@@ -30,35 +29,58 @@ a report (max 2-3 pages) explaining your approach, your other ideas, what went w
 
 I've implemented a solution in Rust, using Actix Web framework for the server and Reqwest for the client.
 
-In prod-level solution I would split the project into 3 separate sub-projects: shared library, client and server.
+In prod-level solution I would split the project into 3 separate sub-projects: a shared library, a client and a server.
 Here, I'll keep everything in one application that can be run as a client or a server.
 My approach simplifies code review, which is the purpose of the challenge.
 
-The client reads the current working directory.
+The client is a CLI tool.
 
-It calculates the Merkle tree for all files in the directory and stores the Merkle Root in `$HOME` directory.
+```text
+Usage: mermade <command> [args]
+Commands:
+  server <port> -- will start the server on the given port
+  upload <server url> <files_dir> -- will upload all files in the <files_dir> directory to the server,
+          output the merkle root to STDOUT and delete the files.
+          The Merkle Root is written to STDOUT in HEX format.
+          Example: mermade upload http://localhost:8080 files > merkle_root.txt
 
-The server IP address is passed as a command line argument.
+  download <server url> <index> -- will download the file with the given index from the server,
+          verify its merkle proof and output the file to stdout.
+          The Merkle Root is read from STDIN in HEX format.
+          If the merkle proof is invalid, the program will exit with an error code.
+          Example: mermade download http://localhost:8080 0 > file.txt < merkle_root.txt
+```
 
-Then it uploads all files to the server, one by one, using REST API POST "/upload". I could use multipart upload, but I decided to keep it simple.
+To start the server on port 8080, run:
 
-A client can request a file by its index using REST API GET "/files/{index}".
+```bash
+mermade server 8080
+```
 
-A client can request a proof for a file by its index using REST API GET "/proofs/{index}".
+The server exposes 3 REST API endpoints:
 
-The client verifies the file using the Merkle proof and the Merkle Root it has stored in `$HOME` directory.
+```text
+POST /upload -- accepts a file upload
+GET /files/{index} -- returns a file by its index
+GET /proofs/{index} -- returns a Merkle proof for a file by its index
+```
 
-The server stores all files in a directory named "files" in the current working directory.
+The server stores all files in a directory named "files" in its current working directory.
 
-On client's first GET request, the server computes Merkle proofs for each file and stores them in _proof_ files in "proofs" directory.
+On client's first GET request after an upload, the server computes Merkle proofs for each file and stores them in _proof_ files in "proofs" directory.
+
+Each proof file contains a Merkle proof for a file with the same index as the proof file, in binary format.
 
 This is a very simple and efficient solution. The Merkle tree and proofs are computed only once, and proofs are essentially cached. Serving static files is very efficient.
 
-Then, on client GET request, the server would simply [`sendfile`](https://linuxgazette.net/issue91/tranter.html) the file and the proof file to the client. It would be very fast and efficient.
+Then, on client GET request, the server simply [`sendfile`](https://linuxgazette.net/issue91/tranter.html) the file and the proof file to the client.
 
 ## Merke Tree
 
-I compute and store the Merkle tree in memory in the following form on both client and server. It's a vector of levels of the tree, where each level is a vector of hashes of the nodes on that level.
+I use SHA256 as a hash function. It's fast and secure enough for this purpose.
+
+I compute and store the full Merkle tree in memory in the following form on both client and server.
+It's a vector of levels of the tree, where each level is a vector of hashes of the nodes on that level.
 So, for 3 files with hashes "aa", "bb", "cc" the tree will look like this:
 
 ```javascript
@@ -71,13 +93,13 @@ So, for 3 files with hashes "aa", "bb", "cc" the tree will look like this:
 
 where "ff" is the Merkle Root.
 
-This is not the most efficient way to store the tree, but it's  simple, easy to implement, and it works. From this implementation it's trivial to derive both Merkle root and proofs.
+This is not the most efficient way to store the tree, but it's simple, easy to implement, and it works.
+From this implementation it's trivial to derive both Merkle root and proofs.
+
+This implementation requires ~2*32 bytes per file, which is not too bad.
 
 If needed I can implement a "rolling" Merkle root computation, requiring ~2*log2(N) memory, where N is the number of files.
 
 ## Other
 
-In prod-level solution I would add logging, metrics, more tests, and better error handling, configuration, multiple clients, file sharing, merkle proofs recalculation on file changes, backpressure, rate limiting, etc.
-
-I've implemented this in Rust mostly for fun, and because you use Rust internally.
-I'm not a Rust expert, so I'm sure there are many things I could do better.
+In prod-level solution I would add logging, metrics, more tests, better error handling, configuration, multiple clients, authentication and authorization, same files sharing, merkle proofs recalculation on file changes, backpressure, rate limiting, etc.
