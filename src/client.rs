@@ -10,15 +10,13 @@ use std::process;
 
 pub struct Client {
     server_url: String,
-    merkle_root_file_path: String,
     files_dir: String,
 }
 
 impl Client {
-    pub fn new(server_url: &str, merkle_root_file_path: &str, files_dir: &str) -> Self {
+    pub fn new(server_url: &str, files_dir: &str) -> Self {
         Self {
             server_url: server_url.to_string(),
-            merkle_root_file_path: merkle_root_file_path.to_string(),
             files_dir: files_dir.to_string(),
         }
     }
@@ -28,11 +26,11 @@ impl Client {
             eprintln!("Failed to read files in {}: {}", self.files_dir, e);
             process::exit(1);
         });
-        println!("Uploading {} files...", files.len());
+        eprintln!("Uploading {} files...", files.len());
         let client = reqwest::blocking::Client::new();
         let url = format!("{}/upload", self.server_url);
         for (index, file) in files.iter().enumerate() {
-            println!("Uploading file {}", &file.display());
+            eprintln!("Uploading file {}", &file.display());
             // TODO: use buffered reader if needed
             // TODO: read each file only once
             // let form = multipart::Form::new().file("file", file).unwrap();
@@ -56,8 +54,8 @@ impl Client {
                 process::exit(1);
             }
         }
-        if let Err(e) = self.store_merkle_root() {
-            eprintln!("Failed to store merkle root: {}", e);
+        if let Err(e) = self.output_merkle_root() {
+            eprintln!("Failed to output merkle root: {}", e);
             process::exit(1);
         }
         // delete files
@@ -65,28 +63,21 @@ impl Client {
     }
 
     fn delete_files(&self) {
-        println!("Deleting files...");
+        eprintln!("Deleting files...");
         // I will not delete any files just in case,
         // it's a demo anyways.
     }
 
-    fn store_merkle_root(&self) -> Result<(), std::io::Error> {
+    fn output_merkle_root(&self) -> Result<(), std::io::Error> {
         let files = list_files_in_order(&self.files_dir)?;
-        println!("Calculating Merkle Root for {} files...", &files.len());
+        eprintln!("Calculating Merkle Root for {} files...", &files.len());
         let mut hashes: Vec<[u8; 32]> = Vec::with_capacity(files.len());
         for file in &files {
             let hash = hash_file_by_path(&file)?;
             hashes.push(hash);
         }
         let merkle_tree = MerkleTree::from_hashes(hashes);
-        // store merkle root to file
-        let mut mr_file = File::create(&self.merkle_root_file_path)?;
-        mr_file.write_all(merkle_tree.get_merkle_root())?;
-        println!(
-            "Merkle root {} save to file {}",
-            hex_hash(merkle_tree.get_merkle_root()),
-            self.merkle_root_file_path
-        );
+        io::stdout().write_all(merkle_tree.get_merkle_root())?;
         Ok(())
     }
 
@@ -101,9 +92,9 @@ impl Client {
     }
 
     fn get_merkle_root(&self) -> Result<[u8; 32], std::io::Error> {
-        let mut file = File::open(&self.merkle_root_file_path)?;
+        // read from stdin
         let mut merkle_root = [0u8; 32];
-        file.read_exact(&mut merkle_root)?;
+        io::stdin().read_exact(&mut merkle_root)?;
         Ok(merkle_root)
     }
 
