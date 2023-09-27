@@ -1,10 +1,8 @@
+use crate::merkle::*;
 use actix_files;
 use actix_files::NamedFile;
-use actix_web::{get, web, App, HttpResponse, HttpServer, Responder, Result};
-use env_logger;
-
-use crate::merkle::*;
 use actix_multipart::Multipart;
+use actix_web::{get, web, App, HttpResponse, HttpServer, Responder, Result};
 use futures::{StreamExt, TryStreamExt};
 use serde::Serialize;
 use std::fs::File;
@@ -124,11 +122,6 @@ async fn download_proof(path: web::Path<String>) -> Result<NamedFile> {
 
 #[actix_web::main]
 pub async fn server() -> std::io::Result<()> {
-    env_logger::Builder::new()
-        .format_timestamp(None)
-        .format_module_path(false)
-        .init();
-
     let server = HttpServer::new(|| {
         App::new()
             .service(download_file)
@@ -137,7 +130,7 @@ pub async fn server() -> std::io::Result<()> {
             .route("/", web::get().to(hello))
     });
 
-    log::info!("Starting server at 0.0.0.0:8080");
+    println!("Starting server at 0.0.0.0:8080");
 
     server.bind("0.0.0.0:8080")?.run().await
 }
