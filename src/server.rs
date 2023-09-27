@@ -19,7 +19,7 @@ fn compute_proofs_if_needed() -> Result<()> {
     if !proofs_dir.exists() {
         println!("Computing proofs...");
         std::fs::create_dir(proofs_dir)?;
-        let files = list_files_in_order("files");
+        let files = list_files_in_order("files")?;
         println!("Files: {:?}", files);
         let mut hashes: Vec<[u8; 32]> = Vec::with_capacity(files.len());
         for file in &files {

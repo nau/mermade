@@ -24,7 +24,10 @@ impl Client {
     }
 
     pub fn upload_all_and_delete(&self) {
-        let files = list_files_in_order(&self.files_dir);
+        let files = list_files_in_order(&self.files_dir).unwrap_or_else(|e| {
+            eprintln!("Failed to read files in {}: {}", self.files_dir, e);
+            process::exit(1);
+        });
         println!("Uploading {} files...", files.len());
         let client = reqwest::blocking::Client::new();
         let url = format!("{}/upload", self.server_url);
@@ -68,7 +71,7 @@ impl Client {
     }
 
     fn store_merkle_root(&self) -> Result<(), std::io::Error> {
-        let files = list_files_in_order(&self.files_dir);
+        let files = list_files_in_order(&self.files_dir)?;
         println!("Calculating Merkle Root for {} files...", &files.len());
         let mut hashes: Vec<[u8; 32]> = Vec::with_capacity(files.len());
         for file in &files {

@@ -15,14 +15,9 @@ use std::path::PathBuf;
 //    This is name-independent approach, but it is slower as it requires two passes over the files.
 // Here we use the first approach.
 // We read the current working directory and sort the files by name.
-pub fn list_files_in_order<P: AsRef<Path>>(dir: P) -> Vec<PathBuf> {
+pub fn list_files_in_order<P: AsRef<Path>>(dir: P) -> io::Result<Vec<PathBuf>> {
     let mut files = Vec::new();
-    let mut paths: Vec<_> = fs::read_dir(dir)
-        .map(|rd| rd.map(|dir| dir.unwrap()).collect())
-        .unwrap_or_else(|_| {
-            println!("Failed to read the current directory");
-            Vec::new()
-        });
+    let mut paths: Vec<_> = fs::read_dir(dir).map(|rd| rd.map(|dir| dir.unwrap()).collect())?;
     paths.sort_by_key(|dir| dir.path());
 
     for path in paths {
@@ -34,7 +29,7 @@ pub fn list_files_in_order<P: AsRef<Path>>(dir: P) -> Vec<PathBuf> {
             _ => {}
         }
     }
-    files
+    Ok(files)
 }
 
 pub fn hash_file_by_path<P: AsRef<Path>>(path: P) -> [u8; 32] {
