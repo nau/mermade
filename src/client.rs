@@ -42,7 +42,8 @@ pub fn upload_all_and_delete(server_url: &str, files_dir: &str) {
         }
         bar.inc(1);
     }
-    bar.finish();
+    bar.finish_and_clear();
+    eprintln!("Files uploaded!");
     // this traverses the files again, but it's ok for a demo
     if let Err(e) = output_merkle_root(files_dir) {
         eprintln!("Failed to output merkle root: {}", e);
@@ -61,13 +62,17 @@ fn delete_files() {
 
 fn output_merkle_root(files_dir: &str) -> Result<(), std::io::Error> {
     let files = list_files_in_order(files_dir)?;
-    eprintln!("Calculating Merkle Root for {} files...", &files.len());
     let mut hashes: Vec<[u8; 32]> = Vec::with_capacity(files.len());
     for file in &files {
         let hash = hash_file_by_path(&file)?;
         hashes.push(hash);
     }
     let merkle_tree = MerkleTree::from_hashes(hashes);
+    eprintln!(
+        "Merkle Root for {} files: {}",
+        &files.len(),
+        hex_hash(merkle_tree.get_merkle_root())
+    );
     io::stdout().write_all(merkle_tree.get_merkle_root())?;
     Ok(())
 }
