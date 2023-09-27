@@ -40,6 +40,7 @@ pub fn upload_all_and_delete(server_url: &str, files_dir: &str) {
             process::exit(1);
         }
     }
+    // this traverses the files again, but it's ok for a demo
     if let Err(e) = output_merkle_root(files_dir) {
         eprintln!("Failed to output merkle root: {}", e);
         process::exit(1);
@@ -83,13 +84,15 @@ fn download_proof(
     return reqwest::blocking::get(url)?.bytes();
 }
 
+// read Merkle root from stdin
 fn get_merkle_root() -> Result<[u8; 32], std::io::Error> {
-    // read from stdin
     let mut merkle_root = [0u8; 32];
     io::stdin().read_exact(&mut merkle_root)?;
     Ok(merkle_root)
 }
 
+/// Download the file with the given index from the server
+/// and verify it with its merkle proof
 pub fn download_verify_file(server_url: &str, file_index: usize) {
     let bytes = download_file(server_url, file_index).unwrap();
     let file_hash = Sha256::digest(&bytes);
@@ -112,6 +115,7 @@ pub fn download_verify_file(server_url: &str, file_index: usize) {
     }
 }
 
+/// Deserialize a merkle proof from a byte array.
 fn deserialize_proof(proof_bytes: &[u8]) -> Result<Vec<[u8; 32]>, String> {
     if proof_bytes.len() % 32 != 0 {
         return Err(format!(

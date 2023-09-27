@@ -57,7 +57,7 @@ fn compute_proofs_if_needed() -> Result<()> {
 }
 
 async fn hello() -> impl Responder {
-    HttpResponse::Ok().body("Hello, Ralph!".to_string())
+    HttpResponse::Ok().body("Hello, Ralph Merkle!".to_string())
 }
 
 async fn upload_file(mut payload: Multipart) -> Result<HttpResponse> {

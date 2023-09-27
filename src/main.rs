@@ -9,7 +9,7 @@ fn show_usage() {
     println!("Commands:");
     println!("  server -- will start the server");
     println!(
-        "  upload <server url> -- will upload all files in the current directory to the server, store the merkle root and delete the files"
+        "  upload <server url> <files_dir> -- will upload all files in the <files_dir> directory to the server, output the merkle root to STDOUT and delete the files"
     );
     println!("  download <server url> <index> -- will download the file with the given index from the server,
     verify its merkle proof and output the file to stdout.
