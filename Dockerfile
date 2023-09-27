@@ -14,7 +14,11 @@ COPY src ./src
 RUN cargo build --release
 
 # Use the official Debian image as the runtime stage
-FROM debian:buster-slim
+FROM debian:bullseye-slim
+# Install necessary libraries
+RUN apt-get update && \
+  apt-get install -y openssl ca-certificates && \
+  rm -rf /var/lib/apt/lists/*
 
 # Copy the binary from the build stage to the runtime stage
 COPY --from=builder /usr/src/mermade/target/release/mermade /usr/local/bin/mermade

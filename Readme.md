@@ -100,6 +100,25 @@ This implementation requires ~2*32 bytes per file, which is not too bad.
 
 If needed I can implement a "rolling" Merkle root computation, requiring ~2*log2(N) memory, where N is the number of files.
 
+There is a property-based test that verifies that the Merkle tree is correct.
+It generates random hashes and verifies that for every Merkle proof the computed Merkle root is the same as computed from the tree.
+
 ## Other
 
-In prod-level solution I would add logging, metrics, more tests, better error handling, configuration, multiple clients, authentication and authorization, same files sharing, merkle proofs recalculation on file changes, backpressure, rate limiting, etc.
+In prod-level solution I would add logging, metrics, more unit and integration tests, better error handling, configuration, multiple clients, authentication and authorization, same files sharing, merkle proofs recalculation on file changes, backpressure, rate limiting, etc.
+
+## How to build
+
+I use Nix Flakes to setup my dev environment. You can use it too, or you can install Rust and Cargo manually.
+
+Run `nix develop` to enter the dev environment.
+
+Run `cargo build --release` to build the project.
+
+## How to run
+
+Run `cargo run -- server 8080` to start the server on port 8080.
+
+Run  `cargo run -- upload http://localhost:8080 files > merkle_root` to upload all files from the "files" directory to the server and store the Merkle Root in the "merkle_root" file.
+
+Run `cargo run -- download http://localhost:8080 0 > file0 < merkle_root` to download the file with index 0 from the server.
