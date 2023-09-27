@@ -31,13 +31,22 @@ fn compute_proofs_if_needed() -> Result<()> {
         let merkle_tree = MerkleTree::from_hashes(hashes);
         println!("Merkle root: {}", hex_hash(merkle_tree.get_merkle_root()));
         for file in &files {
-            let index = file
+            let index = match file
                 .file_name()
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .parse::<usize>()
-                .unwrap();
+                .map(|s| s.to_str().map(|s| s.parse::<usize>()))
+            {
+                Some(Some(Ok(index))) => index,
+                _ => {
+                    return Err(actix_web::Error::from(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        format!(
+                            "Invalid filename. Must be an index of the file, but got: {}",
+                            file.display()
+                        ),
+                    )));
+                }
+            };
+
             let proof = merkle_tree.make_merkle_proof(index);
             let proof_file_path = PathBuf::from("proofs").join(index.to_string());
             let mut proof_file = File::create(proof_file_path)?;
@@ -54,6 +63,7 @@ async fn hello() -> impl Responder {
 }
 
 async fn upload_file(mut payload: Multipart) -> Result<HttpResponse> {
+    // create files directory if it doesn't exist
     let files_dir = PathBuf::from("files");
     if !files_dir.exists() {
         std::fs::create_dir(files_dir)?;
@@ -61,7 +71,13 @@ async fn upload_file(mut payload: Multipart) -> Result<HttpResponse> {
     // iterate over multipart stream
     while let Ok(Some(mut field)) = payload.try_next().await {
         let content_disposition = field.content_disposition();
-        let filename = content_disposition.get_filename().unwrap();
+        let filename = match content_disposition.get_filename() {
+            Some(filename) => filename,
+            None => {
+                return Ok(HttpResponse::BadRequest()
+                    .body("Content-Disposition header is missing filename field"))
+            }
+        };
         let index = match filename.parse::<usize>() {
             Ok(index) => index,
             Err(_) => {
@@ -78,7 +94,7 @@ async fn upload_file(mut payload: Multipart) -> Result<HttpResponse> {
         let mut f = std::fs::File::create(filepath)?;
         // Field in turn is stream of *Bytes* object
         while let Some(chunk) = field.next().await {
-            let data = chunk.unwrap();
+            let data = chunk?;
             f.write_all(&data)?;
         }
         f.sync_all()?;
