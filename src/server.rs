@@ -16,11 +16,11 @@ struct Message {
     message: String,
 }
 
-fn compute_proofs_if_needed() {
+fn compute_proofs_if_needed() -> Result<()> {
     let proofs_dir = PathBuf::from("proofs");
     if !proofs_dir.exists() {
         println!("Computing proofs...");
-        std::fs::create_dir(proofs_dir).unwrap();
+        std::fs::create_dir(proofs_dir)?;
         let files = list_files_in_order("files");
         println!("Files: {:?}", files);
         let mut hashes: Vec<[u8; 32]> = Vec::with_capacity(files.len());
@@ -40,22 +40,23 @@ fn compute_proofs_if_needed() {
                 .unwrap();
             let proof = merkle_tree.make_merkle_proof(index);
             let proof_file_path = PathBuf::from("proofs").join(index.to_string());
-            let mut proof_file = File::create(proof_file_path).unwrap();
+            let mut proof_file = File::create(proof_file_path)?;
             // Convert Vec<[u8; 32]> to Vec<u8>
             let flattened: Vec<u8> = proof.into_iter().flatten().collect();
-            proof_file.write_all(&flattened).unwrap();
+            proof_file.write_all(&flattened)?;
         }
     }
+    Ok(())
 }
 
 async fn hello() -> impl Responder {
     HttpResponse::Ok().body("Hello, Ralph!".to_string())
 }
 
-async fn upload_file(mut payload: Multipart) -> impl Responder {
+async fn upload_file(mut payload: Multipart) -> Result<HttpResponse> {
     let files_dir = PathBuf::from("files");
     if !files_dir.exists() {
-        std::fs::create_dir(files_dir).unwrap();
+        std::fs::create_dir(files_dir)?;
     }
     // iterate over multipart stream
     while let Ok(Some(mut field)) = payload.try_next().await {
@@ -64,30 +65,30 @@ async fn upload_file(mut payload: Multipart) -> impl Responder {
         let index = match filename.parse::<usize>() {
             Ok(index) => index,
             Err(_) => {
-                return HttpResponse::BadRequest().body(format!(
+                return Ok(HttpResponse::BadRequest().body(format!(
                     "Invalid filename. Must be an index of the file, but got: {}",
                     filename
-                ));
+                )));
             }
         };
         let filepath = PathBuf::from("files").join(index.to_string());
         println!("File index {}, path {}", index, filepath.display());
 
         // File::create is blocking operation, use threadpool
-        let mut f = std::fs::File::create(filepath).unwrap();
+        let mut f = std::fs::File::create(filepath)?;
         // Field in turn is stream of *Bytes* object
         while let Some(chunk) = field.next().await {
             let data = chunk.unwrap();
-            f.write_all(&data).unwrap();
+            f.write_all(&data)?;
         }
-        f.sync_all().unwrap();
+        f.sync_all()?;
     }
-    HttpResponse::Ok().finish()
+    Ok(HttpResponse::Ok().finish())
 }
 
 #[get("/files/{fileindex}")]
 async fn download_file(path: web::Path<String>) -> Result<NamedFile> {
-    compute_proofs_if_needed();
+    compute_proofs_if_needed()?;
     let filename = PathBuf::from("files").join(path.into_inner());
     println!("Downloading file {}", filename.display());
     // TODO: ensure that it's impossible to download files outside of the current directory
@@ -97,7 +98,7 @@ async fn download_file(path: web::Path<String>) -> Result<NamedFile> {
 
 #[get("/proofs/{fileindex}")]
 async fn download_proof(path: web::Path<String>) -> Result<NamedFile> {
-    compute_proofs_if_needed();
+    compute_proofs_if_needed()?;
     let file_path = PathBuf::from("proofs").join(path.into_inner());
     println!("Downloading proof {}", file_path.display());
     // TODO: ensure that it's impossible to download files outside of the current directory
