@@ -81,7 +81,7 @@ fn download_file(
     file_index: usize,
 ) -> Result<actix_web::web::Bytes, reqwest::Error> {
     let url = format!("{}/files/{}", server_url, file_index);
-    return reqwest::blocking::get(url)?.bytes();
+    reqwest::blocking::get(url)?.error_for_status()?.bytes()
 }
 
 fn download_proof(
@@ -89,7 +89,7 @@ fn download_proof(
     file_index: usize,
 ) -> Result<actix_web::web::Bytes, reqwest::Error> {
     let url = format!("{}/proofs/{}", server_url, file_index);
-    return reqwest::blocking::get(url)?.bytes();
+    reqwest::blocking::get(url)?.error_for_status()?.bytes()
 }
 
 // read Merkle root from stdin
@@ -106,9 +106,18 @@ fn get_merkle_root() -> Result<[u8; 32], std::io::Error> {
 /// Download the file with the given index from the server
 /// and verify it with its merkle proof
 pub fn download_verify_file(server_url: &str, file_index: usize) {
-    let bytes = download_file(server_url, file_index).unwrap();
+    let bytes = download_file(server_url, file_index).unwrap_or_else(|e| {
+        eprintln!("Failed to download file index {}: {}", file_index, e);
+        process::exit(1);
+    });
     let file_hash = Sha256::digest(&bytes);
-    let proof_bytes = download_proof(server_url, file_index).unwrap();
+    let proof_bytes = download_proof(server_url, file_index).unwrap_or_else(|e| {
+        eprintln!(
+            "Failed to download proof for file index {}: {}",
+            file_index, e
+        );
+        process::exit(1);
+    });
     let proof = deserialize_proof(&proof_bytes).unwrap();
     let merkle_root = get_merkle_root().unwrap();
     match verify_file(&merkle_root, file_index, file_hash.as_ref(), &proof) {

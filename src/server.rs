@@ -61,8 +61,14 @@ async fn hello() -> impl Responder {
 }
 
 async fn upload_file(mut payload: Multipart) -> Result<HttpResponse> {
-    // create files directory if it doesn't exist
+    // remove proofs dir if it exists
     let files_dir = PathBuf::from("files");
+    let proofs_dir = PathBuf::from("proofs");
+    if proofs_dir.exists() {
+        std::fs::remove_dir_all(proofs_dir)?;
+        std::fs::remove_dir_all(&files_dir)?;
+    }
+    // create files directory if it doesn't exist
     if !files_dir.exists() {
         std::fs::create_dir(files_dir)?;
     }
