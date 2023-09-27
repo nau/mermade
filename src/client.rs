@@ -75,7 +75,7 @@ impl Client {
         println!("Calculating Merkle Root for {} files...", &files.len());
         let mut hashes: Vec<[u8; 32]> = Vec::with_capacity(files.len());
         for file in &files {
-            let hash = hash_file_by_path(&file);
+            let hash = hash_file_by_path(&file)?;
             hashes.push(hash);
         }
         let merkle_tree = MerkleTree::from_hashes(hashes);

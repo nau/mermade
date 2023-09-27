@@ -32,13 +32,13 @@ pub fn list_files_in_order<P: AsRef<Path>>(dir: P) -> io::Result<Vec<PathBuf>> {
     Ok(files)
 }
 
-pub fn hash_file_by_path<P: AsRef<Path>>(path: P) -> [u8; 32] {
-    let mut file = File::open(path).unwrap();
+pub fn hash_file_by_path<P: AsRef<Path>>(path: P) -> io::Result<[u8; 32]> {
+    let mut file = File::open(path)?;
     let mut hasher = Sha256::new();
     // TODO: use buffered reader if needed
-    io::copy(&mut file, &mut hasher).unwrap();
+    io::copy(&mut file, &mut hasher)?;
     let hash = hasher.finalize();
-    hash.into()
+    Ok(hash.into())
 }
 
 /// Convert a hash to a hex string.

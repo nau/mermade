@@ -23,7 +23,7 @@ fn compute_proofs_if_needed() -> Result<()> {
         println!("Files: {:?}", files);
         let mut hashes: Vec<[u8; 32]> = Vec::with_capacity(files.len());
         for file in &files {
-            let hash = hash_file_by_path(&file);
+            let hash = hash_file_by_path(&file)?;
             hashes.push(hash);
         }
         let merkle_tree = MerkleTree::from_hashes(hashes);
