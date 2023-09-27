@@ -21,16 +21,15 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() == 2 && args[1] == "server" {
         let _ = server::server();
-    } else if args.len() == 3 && args[1] == "upload" {
+    } else if args.len() == 4 && args[1] == "upload" {
         let server_url = &args[2];
-        let client = Client::new(server_url, "files");
-        client.upload_all_and_delete();
+        let files_dir = &args[3];
+        upload_all_and_delete(server_url, files_dir);
     } else if args.len() == 4 && args[1] == "download" {
         let server_url = &args[2];
         // parse integer from args
         let file_index = args[3].parse::<usize>().unwrap();
-        let client = Client::new(server_url, "files");
-        client.download_verify_file(file_index);
+        download_verify_file(server_url, file_index);
     } else {
         show_usage();
     }
