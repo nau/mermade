@@ -28,12 +28,26 @@ impl Client {
         println!("Uploading {} files...", files.len());
         let client = reqwest::blocking::Client::new();
         let url = format!("{}/upload", self.server_url);
-        for file in files {
+        for (index, file) in files.iter().enumerate() {
             println!("Uploading file {}", &file.display());
             // TODO: use buffered reader if needed
             // TODO: read each file only once
-            let form = multipart::Form::new().file("file", file).unwrap();
-            let response = client.post(&url).multipart(form).send().unwrap();
+            // let form = multipart::Form::new().file("file", file).unwrap();
+            let file_part = multipart::Part::file(file)
+                .map(|p| p.file_name(index.to_string()))
+                .unwrap_or_else(|e| {
+                    eprintln!("Failed to read file {}: {}", file.display(), e);
+                    process::exit(1);
+                });
+            let form = multipart::Form::new().part("file", file_part);
+            let response = client
+                .post(&url)
+                .multipart(form)
+                .send()
+                .unwrap_or_else(|e| {
+                    eprintln!("Failed to upload file {}: {}", file.display(), e);
+                    process::exit(1);
+                });
             if !response.status().is_success() {
                 eprintln!("Failed to upload file. HTTP Response: {:?}", response);
                 process::exit(1);
@@ -49,6 +63,8 @@ impl Client {
 
     fn delete_files(&self) {
         println!("Deleting files...");
+        // I will not delete any files just in case,
+        // it's a demo anyways.
     }
 
     fn store_merkle_root(&self) -> Result<(), std::io::Error> {
