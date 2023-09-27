@@ -122,3 +122,21 @@ Run `cargo run -- server 8080` to start the server on port 8080.
 Run  `cargo run -- upload http://localhost:8080 files > merkle_root` to upload all files from the "files" directory to the server and store the Merkle Root in the "merkle_root" file.
 
 Run `cargo run -- download http://localhost:8080 0 > file0 < merkle_root` to download the file with index 0 from the server.
+
+## How to run in Docker
+
+Run `docker build -t mermade .` to build the Docker image.
+
+Run `docker run -p 8080:8080 mermade server 8080` to start the server on port 8080.
+
+To upload files, run
+
+```bash
+docker run -i -v /absolute/path/to/files:/files mermade upload http://172.17.0.1:8080 /files > merkle_root
+```
+
+To download a file, run
+
+```bash
+docker run -i mermade download http://172.17.0.1:8080 0 < merkle_root
+```

@@ -8,6 +8,7 @@ use std::io::Write;
 use std::process;
 
 pub fn upload_all_and_delete(server_url: &str, files_dir: &str) {
+    eprintln!("Uploading files from {} to {}...", files_dir, server_url);
     let files = list_files_in_order(files_dir).unwrap_or_else(|e| {
         eprintln!("Failed to read files in {}: {}", files_dir, e);
         process::exit(1);
